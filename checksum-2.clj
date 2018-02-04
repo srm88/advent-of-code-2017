@@ -42,8 +42,39 @@
 
 (def day-1? true)
 
-(def check1 (partial check checksum))
+(def check-1 (partial check checksum))
 
 (when day-1?
-  (check1 18 [[5 1 9 5] [7 5 3] [2 4 6 8]])
-  (check1 "?" input))
+  (check-1 18 [[5 1 9 5] [7 5 3] [2 4 6 8]])
+  (check-1 "?" input))
+
+(defn bidir-quotient
+  [x y]
+  (cond
+    (= 0 (mod x y)) (/ x y)
+    (= 0 (mod y x)) (/ y x)
+    :else nil))
+
+(defn divisible-row-result
+  [row]
+  (loop [row* row]
+    (when (seq row)
+      (let [tail (rest row*)]
+        (or (->> tail
+                 (map (partial bidir-quotient (first row*)))
+                 (some #(when (some? %) %)))
+            (recur tail))))))
+
+(defn checksum-2
+  [grid]
+  (->> grid
+       (map divisible-row-result)
+       (reduce +)))
+
+(def day-2? true)
+
+(def check-2 (partial check checksum-2))
+
+(when day-2?
+  (check-2 9 [[5 9 2 8] [9 4 7 3] [3 8 6 5]])
+  (check-2 "?" input))
