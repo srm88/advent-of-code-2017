@@ -100,7 +100,7 @@
        (remove nil?)
        (reduce +)))
 
-(def inner-ring [[0 1N] [1N] [1N] [1N]])
+(def inner-ring [[1N] [1N] [1N] [1N]])
 
 (defn spiral-sum*
   [n]
