@@ -106,6 +106,11 @@
   [n]
   (if (= n 1)
     1
+    ;; Model walking the spiral with a FSM, which is awkward in clojure.
+    ;; new-level: the state for the first number after a completed ring.
+    ;;            Begins on the right side, at position 1 (leaving 0 for
+    ;;            the ring's final number). Transitions to 'side' except
+    ;;            the very first new-level which jumps straight to 'corner'.
     (letfn [(new-level
               [old-ring step n]
               (let [value (from-prev-side (first old-ring) 0)
@@ -119,6 +124,9 @@
                   (if (= 2 step)
                     #(corner old-ring* step 0 [[0 value]] n*)
                     #(side old-ring* step 0 [[0 value]] 2 n*)))))
+            ;; side: state for walking in a straight line before reaching a
+            ;;       corner. Transitions either to the next position in 'side'
+            ;;       or to the side's 'corner'.
             (side
               [old-ring step which-side ring pos n]
               (let [value (+ (last (last ring))
@@ -132,6 +140,9 @@
                   (if (= pos* step)
                     #(corner old-ring step which-side ring* n*)
                     #(side old-ring step which-side ring* pos* n*)))))
+            ;; corner: this function handles turning a corner in the spiral.
+            ;;         Transitions either to the next 'side', or 'new-level'
+            ;;         for a ring's fourth corner.
             (corner
               [old-ring step which-side ring n]
               (let [pre-corner (last (last ring))
