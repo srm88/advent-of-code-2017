@@ -68,11 +68,12 @@
 
 (def check-1 (partial check spiral-steps))
 
-(check-1 0 1)
-(check-1 3 12)
-(check-1 2 23)
-(check-1 31 1024)
-(check-1 "?" input)
+(when false
+  (check-1 0 1)
+  (check-1 3 12)
+  (check-1 2 23)
+  (check-1 31 1024)
+  (check-1 "?" input))
 
 ;; 17  16  15  14  13
 ;; 18   5   4   3  12
@@ -94,13 +95,28 @@
 ;; How to index into the previous level based on the current?
 
 (defn from-prev-side
-  [side pos-in-side]
-  (->> [pos-in-side (inc pos-in-side) (dec pos-in-side)]
-       (map #(nth side % nil))
-       (remove nil?)
-       (reduce +)))
+  [old-ring ring which-side]
+  ;; Sum the values in pos, pos-1, pos+1 from the previous side, using 0
+  ;; for any out of bounds access.
+  (let [pos (count (which-side ring))
+        side (which-side old-ring)]
+    (->> [pos (inc pos) (dec pos)]
+         (map #(nth side % 0))
+         (reduce +))))
 
-(def inner-ring [[1N] [1N] [1N] [1N]])
+;; Hard-code the first square, which is four "sides" each of a single
+;; number. This removes the need to special case the ring that surrounds 1.
+(def inner-ring {:right [1N]
+                 :top [1N]
+                 :left [1N]
+                 :bottom [1N]})
+
+(def next-side {:right :top
+                :top :left
+                :left :bottom
+                :bottom :new-level})
+
+(def new-ring {:right []})
 
 (defn spiral-sum*
   [n]
@@ -113,85 +129,78 @@
     ;;            the very first new-level which jumps straight to 'corner'.
     (letfn [(new-level
               [old-ring step n]
-              (let [value (from-prev-side (first old-ring) 0)
-                    old-ring* (-> old-ring
-                                  (update 0 (partial cons 0))
-                                  (update 3 conj value))
+              (let [value (from-prev-side old-ring new-ring :right)
+                    old-ring* (update old-ring :bottom conj value)
+                    ring (update new-ring :right conj value)
                     n* (dec n)]
                 (debug "new level (step " step ") -> " value)
                 (if (= n* 0)
                   value
                   (if (= 2 step)
-                    #(corner old-ring* step 0 [[0 value]] n*)
-                    #(side old-ring* step 0 [[0 value]] 2 n*)))))
+                    #(corner old-ring* step :right ring n*)
+                    #(side old-ring* step :right ring (- step 2) n*)))))
+            ;;
             ;; side: state for walking in a straight line before reaching a
             ;;       corner. Transitions either to the next position in 'side'
             ;;       or to the side's 'corner'.
+            ;;
             (side
-              [old-ring step which-side ring pos n]
-              (let [value (+ (last (last ring))
-                             (from-prev-side (nth old-ring which-side) pos))
+              [old-ring step which-side ring til-corner n]
+              (let [from-prev (from-prev-side old-ring ring which-side)
+                    value (+ (last (which-side ring))
+                             from-prev)
                     ring* (update ring which-side conj value)
-                    pos* (inc pos)
+                    til-corner* (dec til-corner)
                     n* (dec n)]
-                (debug "side " pos " prev " (last (last ring)) " prev-side " (nth old-ring which-side) " = " (from-prev-side (nth old-ring which-side) pos) " -> " value)
+                (debug "side " which-side " prev " (last (which-side ring)) " prev-side " (which-side old-ring) " = " from-prev " -> " value)
                 (if (= n* 0)
                   value
-                  (if (= pos* step)
+                  (if (= til-corner* 0)
                     #(corner old-ring step which-side ring* n*)
-                    #(side old-ring step which-side ring* pos* n*)))))
+                    #(side old-ring step which-side ring* til-corner* n*)))))
+            ;;
             ;; corner: this function handles turning a corner in the spiral.
             ;;         Transitions either to the next 'side', or 'new-level'
             ;;         for a ring's fourth corner.
+            ;;
             (corner
               [old-ring step which-side ring n]
-              (let [pre-corner (last (last ring))
-                    which-side* (inc which-side)
+              (let [pre-corner (last (which-side ring))
                     value (+ pre-corner
-                             (from-prev-side (nth old-ring which-side) step)
-                             ;; Include the first value of the ring when finishing the ring!
-                             ;;  5   4   2
-                             ;; 10   1   1 <- include this
-                             ;; 11  23  25 <- when computing this
-                             ;;
-                             ;; XXX terrible bug -- when we get to computing 23,
-                             ;; we don't include the right-most 1 in the middle row!
-                             ;; Because old-ring only has [10 1] for the "bottom" side
-                             (if (= which-side* 4)
-                               (first (first ring))
-                               0))
+                             (from-prev-side old-ring ring which-side))
                     ;; Finish current side with corner value
                     ring* (update ring which-side conj value)
                     n* (dec n)]
-                (debug "corner " which-side " prev " pre-corner " -> " value)
+                (debug "corner of " which-side ", prev " pre-corner ", prev-side " (which-side old-ring) " -> " value)
                 (if (= n* 0)
                   value
-                  (if (= which-side* 4)
+                  (if (= which-side :bottom)
                     #(new-level
                        ;; The final corner, in retrospect, starts the first side.
-                       ;; E.g. the first side of level 2 after finishing level 2 is [25 1 2]
-                       (assoc-in ring* [0 0] value)
+                       ;; E.g. the right side of level 2 after finishing level 2 is [25 1 2]
+                       (update ring* :right (partial cons value))
                        (+ step 2)
                        n*)
-                    #(side
-                       ;; Insert the pre-corner number into the next side of the old ring.
-                       ;; E.g. If we're at this corner
-                       ;;
-                       ;;             59 <--
-                       ;;  5   4   2  57
-                       ;; 10   1   1  54
-                       ;; 11  23  25  26
-                       ;;
-                       ;; We're going from the 0th side to the 1st side, old-ring side 1
-                       ;; is [2 4 5], but prepending the pre-corner number like [57 2 4 5]
-                       ;; ensures it is added into the next sum (122), which would other-
-                       ;; wise only add 59 to 2.
-                       (update old-ring which-side* (partial cons pre-corner))
-                       step
-                       which-side*
-                       (conj ring* [value])
-                       1
-                       n*)))))]
+                    (let [which-side* (next-side which-side)]
+                      #(side
+                         ;; Insert the pre-corner number into the next side of the old ring.
+                         ;; E.g. If we're at this corner
+                         ;;
+                         ;;             59 <--
+                         ;;  5   4   2  57
+                         ;; 10   1   1  54
+                         ;; 11  23  25  26
+                         ;;
+                         ;; We're going from the right to the top, old-ring top
+                         ;; is [2 4 5], but prepending the pre-corner number like [57 2 4 5]
+                         ;; ensures it is added into the next sum (122), which would other-
+                         ;; wise only add 59 to 2.
+                         (update old-ring which-side* (partial cons pre-corner))
+                         step
+                         which-side*
+                         (assoc ring* which-side* [value])
+                         (dec step)
+                         n*))))))]
       #(new-level inner-ring 2 (dec n)))))
 
 (defn spiral-sum
