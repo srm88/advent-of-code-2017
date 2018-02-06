@@ -6,7 +6,7 @@
 
 (defn check
   [f expected arg]
-  (println (take 70 (str arg)))
+  (println "input    " (apply str (take 70 (str arg))))
   (println (str "expected: " expected " got: " (f arg))))
 
 ;; down-then-left yields ... odd squares? 1, 9, 25, 49
@@ -208,38 +208,149 @@
   (trampoline spiral-sum* n))
 
 (defn larger-spiral-sum-than
-  [sum]
+  [spiral-sum-fn sum]
   (->> (range)
        (map inc)
-       (map spiral-sum)
+       (map spiral-sum-fn)
        (some #(if (> % sum) %))))
+
+;; ##################
+;; Alternate version!
+;;   convert square number into coordinates
+;;   store a map of coordinates->value
+;;   compute value(N) by walking from 1..N, computing value(n) by summing n's
+;;     coordinates neighbors' values as found in the map.
+;;
+;; Much easier to understand, with basically no corner cases.
+;; ##################
+
+(def up [0 1])
+(def left [-1 0])
+(def down [0 -1])
+(def right [1 0])
+
+(def next-dir {up left
+               left down
+               down right
+               right up})
+
+;; Example states:
+;; nil     -> [0 0]   then go right 1 til corner
+;; [0 0]   -> [1 0]   then turn go up 1 til corner
+;; [1 0]   -> [1 1]   then turn go left 2 til corner
+;; [1 1]   -> [0 1]   then 1 til corner
+;; [0 1]   -> [-1 1]  then turn go down 2 til corner
+;; [-1 1]  -> [-1 0]  then 1 til corner
+;; [-1 0]  -> [-1 -1] then turn go right 3 til corner
+;; [-1 -1] -> [0 -1]  then 2 til corner
+;; [0 -1]  -> [1 -1]  then 1 til corner
+;; [1 -1]  -> [2 -1]  then turn go up 3 til corner
+;; [2 -1]  ...
+;; [2 1]   -> [2 2]   then turn go left 4 til corner
+(defn coords
+  [n*]
+  (loop [coord [0 0]
+         dir right
+         step 1
+         til-corner 1
+         n n*]
+    (debug {:coord coord
+            :dir dir
+            :step step
+            :til-corner til-corner
+            :n n})
+    (if (= n 1)
+      coord
+      (if (= til-corner 1)
+        ;; If we round the top-right or bottom-left corner, the step increases
+        (let [step* (cond-> step (contains? #{up down} dir) inc)]
+          (recur (mapv + coord dir)
+                 (next-dir dir)
+                 step*
+                 step*
+                 (dec n)))
+        (recur (mapv + coord dir)
+               dir
+               step
+               (dec til-corner)
+               (dec n))))))
+
+(def eight-directions [up left down right (mapv + up left) (mapv + up right) (mapv + down left) (mapv + down right)])
+
+(defn spiral-sum-alt
+  [n*]
+  (loop [n 1
+         lookup {}]
+    (let [here (coords n)
+          value (if (= n 1)
+                  1
+                  (->> eight-directions
+                       (map (partial mapv + here))
+                       (map #(get lookup % 0))
+                       (reduce +)))]
+      (if (= n n*)
+        value
+        (recur (inc n)
+               (assoc lookup here value))))))
+
+(def check-coords (partial check coords))
+
+(when false
+  (check-coords [0 0] 1)
+  (check-coords [1 0] 2)
+  (check-coords [1 1] 3)
+  (check-coords [0 1] 4)
+  (check-coords [-1 1] 5)
+  (check-coords [-1 0] 6)
+  (check-coords [-1 -1] 7)
+  (check-coords [0 -1] 8)
+  (check-coords [1 -1] 9)
+  (check-coords [2 -1] 10)
+  (check-coords [2 0] 11)
+  (check-coords [2 1] 12)
+  (check-coords [2 2] 13)
+  (check-coords [1 2] 14)
+  (check-coords [0 2] 15)
+  (check-coords [-1 2] 16)
+  (check-coords [-2 2] 17)
+  (check-coords [-2 1] 18)
+  (check-coords [-2 0] 19)
+  (check-coords [-2 -1] 20)
+  (check-coords [-2 -2] 21)
+  (check-coords [-1 -2] 22)
+  (check-coords [0 -2] 23)
+  (check-coords [1 -2] 24)
+  (check-coords [2 -2] 25)
+  (check-coords [3 -2] 26))
 
 (def check-2 (partial check spiral-sum))
 
-(when true
-  (check-2 1 1)
-  (check-2 1 2)
-  (check-2 2 3)
-  (check-2 4 4)
-  (check-2 5 5))
+(def check-2-alt (partial check spiral-sum-alt))
 
-(when true
-  (check-2 10 6)
-  (check-2 11 7)
-  (check-2 23 8)
-  (check-2 25 9)
-  (check-2 26 10)
-  (check-2 54 11)
-  (check-2 57 12)
-  (check-2 59 13)
-  (check-2 122 14)
-  (check-2 133 15)
-  (check-2 142 16)
-  (check-2 147 17)
-  (check-2 304 18)
-  (check-2 330 19)
-  (check-2 351 20)
-  (check-2 362 21)
-  (check-2 747 22)
-  (check-2 806 23)
-  (check larger-spiral-sum-than "?" input))
+(doseq [f [spiral-sum spiral-sum-alt]]
+  (let [check-f (partial check f)]
+    (println f)
+    (check-f 1 1)
+    (check-f 1 2)
+    (check-f 2 3)
+    (check-f 4 4)
+    (check-f 5 5)
+    (check-f 10 6)
+    (check-f 11 7)
+    (check-f 23 8)
+    (check-f 25 9)
+    (check-f 26 10)
+    (check-f 54 11)
+    (check-f 57 12)
+    (check-f 59 13)
+    (check-f 122 14)
+    (check-f 133 15)
+    (check-f 142 16)
+    (check-f 147 17)
+    (check-f 304 18)
+    (check-f 330 19)
+    (check-f 351 20)
+    (check-f 362 21)
+    (check-f 747 22)
+    (check-f 806 23)
+    (check (partial larger-spiral-sum-than f) "?" input)))
