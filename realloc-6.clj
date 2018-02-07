@@ -20,12 +20,11 @@
 
 (defn redistribute
   [blocks]
-  (let [len (count blocks)
-        to-redistribute (last (sort blocks))
+  (let [to-redistribute (last (sort blocks))
         idx (.indexOf blocks to-redistribute)
         indexes (->> (range to-redistribute)
-                     (mapv (partial + idx 1)) ;; shift every index by the biggest one + 1
-                     (mapv #(mod % len)))] ;; mod each index so we wrap
+                     (mapv (partial + idx 1)) ;; shift by the position of the block after the one being broken up
+                     (mapv #(mod % (count blocks))))] ;; mod each index so we wrap
     (as-> blocks b
       ;; Set the biggest bank to 0
       (assoc b idx 0)
