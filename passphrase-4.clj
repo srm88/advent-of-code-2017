@@ -546,3 +546,18 @@ lpyubo dylpfb iehwug decj ntidy cuygyg lalkb iutu oxgm imn"))
 ;; ######
 ;; Part 2
 ;; ######
+
+(defn valid-2?
+  [passphrase]
+  (let [words (string/split passphrase #"\s+")]
+    (= (count words) (->> words (map sort) set count))))
+
+(def check-valid-2? (partial check valid-2?))
+
+(when true
+  (check-valid-2? true "abcde fghij")
+  (check-valid-2? false "abcde xyz ecdab")
+  (check-valid-2? true "a ab abc abd abf abj")
+  (check-valid-2? true "iiii oiii ooii oooi oooo")
+  (check-valid-2? false "oiii ioii iioi iiio")
+  (check count "?" (filter valid-2? input)))
