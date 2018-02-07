@@ -92,7 +92,7 @@
 ;; ######
 
 (defn steps-to-escape
-  [maze*]
+  [offset-update-fn maze*]
   (let [escaped? #(or (>= % (count maze*)) (< % 0))]
     (loop [pos 0
            maze maze*
@@ -100,11 +100,12 @@
       (if (escaped? pos)
         steps
         (recur (+ pos (nth maze pos))
-               (update maze pos inc)
+               (update maze pos offset-update-fn)
                (inc steps))))))
 
+(def steps-to-escape-1 (partial steps-to-escape inc))
 
-(def check-steps (partial check steps-to-escape))
+(def check-steps (partial check steps-to-escape-1))
 
 (when true
   (check-steps 5 [0 3 0 1 -3])
@@ -113,3 +114,11 @@
 ;; ######
 ;; Part 2
 ;; ######
+
+(def steps-to-escape-2 (partial steps-to-escape #(if (>= % 3) (dec %) (inc %))))
+
+(def check-steps-2 (partial check steps-to-escape-2))
+
+(when true
+  (check-steps-2 10 [0 3 0 1 -3])
+  (check-steps-2 "?" input))
