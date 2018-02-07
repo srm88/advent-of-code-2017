@@ -1,0 +1,22 @@
+(ns advent-of-code.XXX)
+
+(def debug? false)
+
+(defn debug
+  [& args]
+  (when debug?
+    (apply println args)))
+
+(defn check
+  [f expected arg]
+  (println "input    " (apply str (take 70 (str arg))))
+  (println (str "expected: " expected " got: " (f arg))))
+
+;; ######
+;; Part 1
+;; ######
+
+
+;; ######
+;; Part 2
+;; ######
