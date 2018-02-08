@@ -31,17 +31,22 @@
       ;; Use reduce to inc every block in 'indexes'
       (reduce (fn [b* i] (update b* i inc)) b indexes))))
 
-(defn how-many-cycles
+(defn find-loop
   [blocks*]
   (loop [seen #{}
          blocks blocks*
          cycles 1]
     (let [new-blocks (redistribute blocks)]
       (if (contains? seen new-blocks)
-        cycles
+        {:cycles cycles
+         :blocks blocks}
         (recur (conj seen new-blocks)
                new-blocks
                (inc cycles))))))
+
+(defn how-many-cycles
+  [blocks]
+  (-> blocks find-loop :cycles))
 
 (def check-cycles (partial check how-many-cycles))
 
@@ -52,6 +57,16 @@
 ;; ######
 ;; Part 2
 ;; ######
+
+(defn loop-size
+  [blocks]
+  (-> blocks find-loop :blocks find-loop :cycles dec))
+
+(def check-loop-size (partial check loop-size))
+
+(when true
+  (check-loop-size 4 [0 2 7 0])
+  (check-loop-size "?" input))
 
 (use 'clojure.stacktrace)
 (when *e
