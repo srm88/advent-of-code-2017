@@ -13,47 +13,6 @@
   (println "input    " (apply str (take 70 (str arg))))
   (println (str "expected: " expected " got: " (f arg))))
 
-;; ######
-;; Part 1
-;; ######
-
-(def preds {">" >
-            "<" <
-            ">=" >=
-            "==" =
-            "<=" <=
-            "!=" not=})
-
-(def ops {"inc" (fnil + 0)
-          "dec" (fnil - 0)})
-
-(defn parse-line
-  [line]
-  (let [[reg* op* operand* _if reg-cond* pred* value*] (string/split line #" ")
-        reg (keyword reg*)
-        reg-cond (keyword reg-cond*)
-        operand (Integer. operand*)
-        value (Integer. value*)
-        op (ops op*)
-        pred (preds pred*)]
-    (fn [registers]
-      (if (pred (get registers reg-cond 0) value)
-        (update registers reg op operand)
-        registers))))
-
-(defn largest-value
-  [s]
-  (let [lines (string/split s #"\n")]
-    (->> (reduce (fn [regs line] (apply (parse-line line) [regs])) {} lines)
-         (vals)
-         (sort >)
-         (first))))
-
-(def input-basic "b inc 5 if a > 1
-a inc 1 if b < 5
-c dec -10 if a >= 1
-c inc -20 if c == 10")
-
 (def input "d dec 461 if oiy <= 1
 phf dec -186 if eai != -2
 oiy inc 585 if lk >= 9
@@ -1055,6 +1014,47 @@ sy dec 878 if oiy < 5975
 x dec 365 if oiy < 5971
 fu inc 131 if rjt == 4175")
 
+;; ######
+;; Part 1
+;; ######
+
+(def preds {">" >
+            "<" <
+            ">=" >=
+            "==" =
+            "<=" <=
+            "!=" not=})
+
+(def ops {"inc" (fnil + 0)
+          "dec" (fnil - 0)})
+
+(defn parse-line
+  [line]
+  (let [[reg* op* operand* _if reg-cond* pred* value*] (string/split line #" ")
+        reg (keyword reg*)
+        reg-cond (keyword reg-cond*)
+        operand (Integer. operand*)
+        value (Integer. value*)
+        op (ops op*)
+        pred (preds pred*)]
+    (fn [registers]
+      (if (pred (get registers reg-cond 0) value)
+        (update registers reg op operand)
+        registers))))
+
+(defn largest-value
+  [s]
+  (let [lines (string/split s #"\n")]
+    (->> (reduce (fn [regs line] (apply (parse-line line) [regs])) {} lines)
+         (vals)
+         (sort >)
+         (first))))
+
+(def input-basic "b inc 5 if a > 1
+a inc 1 if b < 5
+c dec -10 if a >= 1
+c inc -20 if c == 10")
+
 (def check-largest (partial check largest-value))
 
 (when true
@@ -1065,3 +1065,23 @@ fu inc 131 if rjt == 4175")
 ;; Part 2
 ;; ######
 
+(defn highest-value
+  [s]
+  (let [lines (string/split s #"\n")]
+    (->> lines
+         (map parse-line)
+         (reduce (fn [{regs :regs highest :highest} f]
+                   (let [new-regs (f regs)]
+                     {:regs new-regs
+                      :highest (->> (vals new-regs)
+                                    (concat [highest])
+                                    (sort >)
+                                    (first))}))
+                 {:regs {} :highest 0})
+         (:highest))))
+
+(def check-highest (partial check highest-value))
+
+(when true
+  (check-highest 10 input-basic)
+  (check-highest "?" input))
